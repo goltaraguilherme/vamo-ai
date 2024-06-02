@@ -1,7 +1,10 @@
 import logging
 import json
+import pandas as pd
+import datetime
 
 from flask import Blueprint, request, jsonify, current_app
+from sqlalchemy.exc import SQLAlchemyError
 
 from .decorators.security import signature_required
 from .utils.whatsapp_utils import (
@@ -9,8 +12,16 @@ from .utils.whatsapp_utils import (
     is_valid_whatsapp_message,
 )
 
+from .model import Chats, Messages, db
+
 webhook_blueprint = Blueprint("webhook", __name__)
 
+(START,
+ROTEIRO_PERSONALIZADO_PREFERENCIAS,
+ROTEIRO_PERSONALIZADO_COMPANHIA,
+ROTEIRO_PERSONALIZADO_DURACAO,
+ROTEIRO_PERSONALIZADO_CIDADES,
+ROTEIRO_PERSONALIZADO_FINALIZACAO) = range(6)
 
 def handle_message():
     """
@@ -28,7 +39,7 @@ def handle_message():
     """
     body = request.get_json()
     # logging.info(f"request body: {body}")
-
+    print(body)
     # Check if it's a WhatsApp status update
     if (
         body.get("entry", [{}])[0]
@@ -39,9 +50,55 @@ def handle_message():
         logging.info("Received a WhatsApp status update.")
         return jsonify({"status": "ok"}), 200
 
+    wpp_id = body["entry"][0]["changes"][0]["value"]["messages"][0]["id"]
+    try:
+        message = Messages.query.filter_by(wpp_id=wpp_id).first()
+        if message:
+            return jsonify({"status": "ok"}), 200
+        else:
+            new_message = Messages(
+                wpp_id=wpp_id
+            )
+            db.session.add(new_message)
+            db.session.commit()
+    except SQLAlchemyError as e:
+        return jsonify({"error": str(e)}), 500
     try:
         if is_valid_whatsapp_message(body):
-            process_whatsapp_message(body)
+            number = body["entry"][0]["changes"][0]["value"]["contacts"][0]["wa_id"]
+            name_user = body["entry"][0]["changes"][0]["value"]["contacts"][0]["profile"]["name"]
+            state = 0
+            try:
+                chat = Chats.query.filter_by(number=number).first()
+                if chat:
+                    state = chat.state
+                else:
+                    new_chat = Chats(
+                        state=0,
+                        number=number
+                    )
+                    db.session.add(new_chat)
+                    db.session.commit()
+            except SQLAlchemyError as e:
+                return jsonify({"error": str(e)}), 500
+            message = body["entry"][0]["changes"][0]["value"]["messages"][0]
+            #logging.info(f"teste: {message}")
+            message_body = message["text"]["body"] if 'text' in message else message["interactive"]["list_reply"]["title"]
+            if(state == START and message_body.upper() == "ROTEIRO PERSONALIZADO"):
+                state = ROTEIRO_PERSONALIZADO_PREFERENCIAS
+            elif(state == ROTEIRO_PERSONALIZADO_PREFERENCIAS):
+                state = ROTEIRO_PERSONALIZADO_COMPANHIA
+            elif(state == ROTEIRO_PERSONALIZADO_COMPANHIA):
+                state = ROTEIRO_PERSONALIZADO_DURACAO
+            elif(state == ROTEIRO_PERSONALIZADO_DURACAO):
+                state = ROTEIRO_PERSONALIZADO_CIDADES
+            elif(state == ROTEIRO_PERSONALIZADO_CIDADES):
+                state = ROTEIRO_PERSONALIZADO_FINALIZACAO
+            
+            if chat:
+                chat.state = state
+                db.session.commit()
+            process_whatsapp_message(body, state, number)
             return jsonify({"status": "ok"}), 200
         else:
             # if the request is not a WhatsApp API event, return an error
@@ -85,5 +142,7 @@ def webhook_get():
 @signature_required
 def webhook_post():
     return handle_message()
+
+
 
 
