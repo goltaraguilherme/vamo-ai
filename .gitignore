@@ -89,3 +89,6 @@ target/
 
 # Exlcude the database file
 .db
+
+#ambiente virtual
+/ambvir/
