@@ -93,3 +93,10 @@ target/
 
 #ambiente virtual
 ambvir/
+
+
+start/
+img/
+docs/
+app/1/
+app/dados/
