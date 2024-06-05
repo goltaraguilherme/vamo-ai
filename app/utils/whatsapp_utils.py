@@ -202,7 +202,7 @@ def get_days_travel(recipient):
             "recipient_type": "individual",
             "to": recipient,
             "type": "text",
-            "text": {"preview_url": False, "body": "Que legal, uma viagem com seu amor sempre vale a pena! 💑 Quantos dias vocês desejam passar no local? 🗓️"},
+            "text": {"preview_url": False, "body": "Muito bom! Quantos dias vocês desejam passar no local? 🗓️"},
         }
     )
 
