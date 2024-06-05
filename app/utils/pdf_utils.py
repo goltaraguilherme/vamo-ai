@@ -1,13 +1,12 @@
 import os
 import textwrap
 import requests
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 from io import BytesIO
-from dotenv import load_dotenv
+from collections import Counter
 
-load_dotenv()
 
-GOOGLE_PLACE_API_KEY = os.getenv("GOOGLE_PLACE_API_KEY")
+GOOGLE_PLACE_API_KEY = "AIzaSyB3fFwNUxFRONrvSdFw_Cij08LvPYZ8X8g"
 
 def get_place_id(api_key, place_name):
     try:
@@ -88,6 +87,36 @@ def draw_text(draw, text, position, font, max_width, fill, line_spacing=20):
         draw.text((position[0], y), line, font=font, fill=fill)
         y += draw.textbbox((0, 0), line, font=font)[3] - draw.textbbox((0, 0), line, font=font)[1] + line_spacing
 
+# Função com quebra de linha por meio do espaçamento e subtitulo
+def draw_text(draw, text, position, font, max_width, fill, line_spacing=20):
+    words = text.split()
+    lines = []
+    line = []
+    for word in words:
+        test_line = ' '.join(line + [word])
+        bbox = draw.textbbox((0, 0), test_line, font=font)
+        width = bbox[2] - bbox[0]
+        if width <= max_width:
+            line.append(word)
+            if word.endswith('.'):
+                lines.append(' '.join(line))
+                line = []
+        else:
+            lines.append(' '.join(line))
+            line = [word]
+            if word.endswith('.'):
+                lines.append(' '.join(line))
+                line = []
+    if line:
+        lines.append(' '.join(line))
+
+    y = position[1]
+    for line in lines:
+        draw.text((position[0], y), line, font=font, fill=fill)
+        y += draw.textbbox((0, 0), line, font=font)[3] - draw.textbbox((0, 0), line, font=font)[1] + line_spacing
+        if line.endswith('.'):
+            y += line_spacing  # Adiciona um espaçamento extra após a linha com ponto final
+
 # Função para desenhar textos com subtítulos
 def draw_text_with_subtitles(draw, position, text, text_font, subtitle_font, text_color, max_width):
     lines = text.split('\n')
@@ -110,12 +139,60 @@ def draw_text_with_subtitles(draw, position, text, text_font, subtitle_font, tex
                 draw.text((position[0], y), sub_line, font=text_font, fill=text_color)
                 y += draw.textbbox((0, 0), sub_line, font=text_font)[3] - draw.textbbox((0, 0), sub_line, font=text_font)[1] + 5
 
+# Função para melhorar as imagem da API do Google Places
+def enhance_image(image):
+    # Aumentar a nitidez
+    enhancer = ImageEnhance.Sharpness(image)
+    image = enhancer.enhance(2.0)  # Ajuste o valor conforme necessário
+
+    # Aumentar o contraste
+    enhancer = ImageEnhance.Contrast(image)
+    image = enhancer.enhance(1.5)  # Ajuste o valor conforme necessário
+
+    # Aumentar o brilho
+    enhancer = ImageEnhance.Brightness(image)
+    image = enhancer.enhance(1.2)  # Ajuste o valor conforme necessário
+
+    return image
+def get_top_colors(image, n=2):
+    image = image.resize((100, 100))
+    image = image.convert('RGB')
+    pixels = [pixel for pixel in image.getdata() if pixel != (0, 0, 0) and pixel != (255, 255, 255)]
+    counter = Counter(pixels)
+    top_colors = [color for color, count in counter.most_common(n)]
+    return top_colors
+def rgb_to_hex(rgb):
+    return '#{:02x}{:02x}{:02x}'.format(*rgb)
+def is_similar_color(color1, color2, threshold=50):
+    return all(abs(a - b) < threshold for a, b in zip(color1, color2))
+def get_text_color(bg_color):
+    # Calcula a luminância da cor de fundo
+    luminance = 0.299 * bg_color[0] + 0.587 * bg_color[1] + 0.114 * bg_color[2]
+    # Retorna branco para fundos escuros e branco para fundos claros novamente
+    return (255, 255, 255) if luminance < 128 else (255, 255, 255)
+
+# Função para decidir qual cor usar como fundo e como texto
+def choose_colors(top_colors):
+    if len(top_colors) == 0:
+        return (0, 0, 0), (255, 255, 255)
+    principal_color = top_colors[0]
+    if len(top_colors) > 1:
+        second_principal_color = top_colors[1]
+        if is_similar_color(principal_color, second_principal_color):
+            text_color = get_text_color(principal_color)
+        else:
+            text_color = second_principal_color
+    else:
+        text_color = get_text_color(principal_color)
+    return principal_color, text_color
+
+# Função para criar um layout de capa
 def capa_layout_1(place_names, number, api_key=GOOGLE_PLACE_API_KEY):
     # Caminho para a logo
-    logo_path = './app/assets/logoVamo.png'
+    logo_path = '../assets/logoVamo.png'
     # Caminhos para as fontes
-    font_path = './app/assets/Brice-Regular-SemiExpanded.ttf'
-    font_path2 = './app/assets/Brice-Bold-SemiExpanded.ttf'
+    font_path = '../assets/Brice-Regular-SemiExpanded.ttf'
+    font_path2 = '../assets/Brice-Bold-SemiExpanded.ttf'
 
     # Verificar se os arquivos de fonte existem
     if not os.path.exists(font_path):
@@ -199,9 +276,9 @@ def capa_layout_1(place_names, number, api_key=GOOGLE_PLACE_API_KEY):
     draw.text(desc2_position, wrapped_desc2_text, font=desc_font, fill='white')
     draw.text(desc3_position, wrapped_desc3_text, font=desc_font, fill='white')
 
-    os.makedirs(f"./app/dados/{number}", exist_ok=True)
+    os.makedirs(f"../dados/{number}", exist_ok=True)
     # Salvar a imagem final
-    output_path = f"./app/dados/{number}/capaTeste.png"
+    output_path = f"../dados/{number}/capaTeste.png"
     img.save(output_path)
 
     return output_path
@@ -209,15 +286,79 @@ def capa_layout_1(place_names, number, api_key=GOOGLE_PLACE_API_KEY):
     # Mostrar a imagem final
     #img.show()
 
-def day_odd_layout_1(place_names, dicas,day, number, api_key=GOOGLE_PLACE_API_KEY):
+def morning_layout_1(place_names, dicas, dia_text, day_index, api_key=GOOGLE_PLACE_API_KEY):
+#Testar para ver se as cores ficaram certas
+#talvez para o titulo usar uma 3 cor mais presente na imagem
+
+    # Caminho das imagens
+    images = [get_place_photo(api_key, place_name) for place_name in place_names]
+
+    logo_path = '../assets/logoVamo.png'  # Caminho para a logo
+    # Carregar a imagem que será incluída na parte inferior
+    bottom_image = images[0].resize((1080, 600))  # Redimensionar a imagem se necessário
+
+    # Configurações de fonte
+    font_path = '../assets/Brice-Bold-SemiExpanded.ttf'
+    font_path2 = '../assets/Brice-Regular-SemiExpanded.ttf'
+    title_font = ImageFont.truetype(font_path, 35)
+    subtitle_font = ImageFont.truetype(font_path, 30)
+    body_font = ImageFont.truetype(font_path2, 25)
+
+    # Tamanho da nova imagem
+    image_width, image_height = 1080, 1080
+
+    top_colors1 = get_top_colors(bottom_image)
+    bg_color1, text_color1 = choose_colors(top_colors1)
+
+    # Criar uma nova imagem com fundo bg_color1
+    new_image = Image.new('RGB', (image_width, image_height), bg_color1)
+
+    # Desenhar textos
+    draw = ImageDraw.Draw(new_image)
+
+    dia_text = generate_day_text(day_index)
+    title_text = f"{dia_text} dia de viagem!"  
+    subtitle_text = f"Manhã: {place_names[0]} "  
+    body_text = dicas[0]
+
+    # Centralizar o título
+    title_width, title_height = draw.textbbox((0, 0), title_text, font=title_font)[2:4]
+    title_position = ((image_width - title_width) // 2, 20)
+
+    # Coordenadas para os textos da coluna da esquerda
+    subtitle_position = (50, 120)
+    body_position = (50, 200)
+
+    # Desenhando os textos
+    draw.text(title_position, title_text, font=title_font, fill=text_color1) 
+    draw_text(draw, subtitle_text, subtitle_position, subtitle_font, image_width - 100, text_color1)
+    draw_text(draw, body_text, body_position, body_font, image_width - 100, text_color1)
+
+    # Colar a imagem na parte inferior
+    new_image.paste(bottom_image, (0, 600))
+
+    # Carregar e redimensionar a logo
+    logo_image = Image.open(logo_path).convert("RGBA")
+    logo_image = logo_image.resize((180, 200))  # Ajuste o tamanho conforme necessário
+    logo_x = 20
+    logo_y = 950
+
+    # Colar a logo na imagem
+    new_image.paste(logo_image, (logo_x, logo_y), logo_image)
+
+    # Salvar a nova imagem
+    new_image.save('../dados/{number}/morning_{day}.png')
+    new_image.show()
+
+def day_odd_layout_1(place_names, dicas, day, dia_text, number, api_key=GOOGLE_PLACE_API_KEY):
     # Obter as imagens usando os nomes dos lugares
     images = [get_place_photo(api_key, place_name) for place_name in place_names]
 
     # Caminhos para as imagens e fon
-    logo_path = "./app/assets/logoVamo.png"  # Caminho para a logo
-    font_path_title = './app/assets/Brice-Bold-SemiExpanded.ttf'
-    font_path_subtitle = './app/assets/Brice-SemiBoldExpanded.ttf'
-    font_path_text = './app/assets/Brice-Regular-SemiExpanded.ttf'
+    logo_path = "../assets/logoVamo.png"  # Caminho para a logo
+    font_path_title = '../assets/Brice-Bold-SemiExpanded.ttf'
+    font_path_subtitle = '../assets/Brice-SemiBoldExpanded.ttf'
+    font_path_text = '../assets/Brice-Regular-SemiExpanded.ttf'
 
     # Dimensões da nova imagem
     image_width, image_height = 1080, 1080
@@ -239,16 +380,18 @@ def day_odd_layout_1(place_names, dicas,day, number, api_key=GOOGLE_PLACE_API_KE
     img.paste(image2, image2_position)
 
     # Cores de fundo para cada seção de texto
-    background_color1 = "#03487a"  # Azul escuro
-    background_color2 = "white"    # Branco
+    # Obtém as cores principais
+    top_colors1 = get_top_colors(image1)
+
+    bg_color1, text_color1 = choose_colors(top_colors1)
 
     # Posições e tamanhos dos textos e retângulos
     section1_rect = [(0, 0), (540, 540)]
     section2_rect = [(540, 540), (1080, 1080)]
 
     # Desenhar retângulos coloridos atrás dos textos
-    draw.rectangle(section1_rect, fill=background_color1)
-    draw.rectangle(section2_rect, fill=background_color2)
+    draw.rectangle(section1_rect, fill=bg_color1)
+    draw.rectangle(section2_rect, fill=text_color1)
 
     # Fontes
     title_font = ImageFont.truetype(font_path_title, 23)
@@ -256,8 +399,8 @@ def day_odd_layout_1(place_names, dicas,day, number, api_key=GOOGLE_PLACE_API_KE
     text_font = ImageFont.truetype(font_path_text, 18)
 
     # Títulos e Textos
-    title1 = f"Dicas para aproveitar {place_names[0]}"
-    title2 = f"Dicas para aproveitar as {place_names[1]}"
+    title1 = f"Tarde: {place_names[0]}"
+    title2 = f"Noite: {place_names[1]}"
     text1 = dicas[0]
     text2 = dicas[1]
 
@@ -271,30 +414,53 @@ def day_odd_layout_1(place_names, dicas,day, number, api_key=GOOGLE_PLACE_API_KE
     max_text_width1 = 540 - 40  # 540px de largura total menos 20px de cada lado
     max_text_width2 = 540 - 40  # 540px de largura total menos 20px de cada lado
 
-    wrapped_title1 = wrap_text_by_words(title1, max_text_width1, draw, title_font)
-    wrapped_title2 = wrap_text_by_words(title2, max_text_width2, draw, title_font)
+    draw_text(draw, title1, title1_position, title_font, max_text_width1, text_color1)
+    draw_text(draw, text1, text1_position, text_font, max_text_width1, text_color1)
+    draw_text(draw, title2, title2_position, title_font, max_text_width2, bg_color1)
+    draw_text(draw, text2, text2_position, text_font, max_text_width2, bg_color1)
 
-    draw.text(title1_position, wrapped_title1, font=title_font, fill='white')
-    draw_text_with_subtitles(draw, text1_position, text1, text_font, subtitle_font, 'white', max_text_width1)
-    draw.text(title2_position, wrapped_title2, font=title_font, fill='#03487a')
-    draw_text_with_subtitles(draw, text2_position, text2, text_font, subtitle_font, '#03487a', max_text_width2)
+    # Adicionar caixa com "Dia X" no meio do layout
+    day_box_width, day_box_height = 130, 50
+    day_box_position = ((image_width - day_box_width) // 2, (image_height - day_box_height) // 2 - 20)
+    day_box = [(day_box_position[0], day_box_position[1]), 
+                (day_box_position[0] + day_box_width, day_box_position[1] + day_box_height)]
+
+    draw.rectangle(day_box, fill=bg_color1, outline="white")
+    day_font = ImageFont.truetype(font_path_title, 25)
+    day_text_size = draw.textbbox((0, 0), dia_text, font=day_font)
+    day_text_position = (
+        day_box_position[0] + (day_box_width - (day_text_size[2] - day_text_size[0])) // 2,
+        day_box_position[1] + (day_box_height - (day_text_size[3] - day_text_size[1])) // 2
+    )
+    draw.text(day_text_position, dia_text, font=day_font, fill="white")
+
+    # Carregar e redimensionar a logo
+    logo_image = Image.open(logo_path).convert("RGBA")
+    logo_image = logo_image.resize((180, 200))  # Ajuste o tamanho conforme necessário
+    logo_x = 20
+    logo_y = 950  
+
+    # Colar a logo na imagem
+    img.paste(logo_image, (logo_x, logo_y), logo_image)
 
     # Salvar a imagem final
-    output_path = f"./app/dados/{number}/day_odd_{day}.png"
+    output_path = f"../dados/{number}/day_odd_{day}.png"
     img.save(output_path)
     
     # Mostrar a imagem final
     #img.show()
     return output_path
 
-def day_even_layout_1(place_names, dicas, day, number, api_key=GOOGLE_PLACE_API_KEY):
+def day_even_layout_1(place_names, dicas, day, dia_text, number, api_key=GOOGLE_PLACE_API_KEY):
     # Obter as imagens usando os nomes dos lugares
     images = [get_place_photo(api_key, place_name) for place_name in place_names]
 
+    # Caminho para a logo
+    logo_path = '../assets/logoVamo.png'
     # Caminhos para as fontes
-    font_path_title = './app/assets/Brice-Bold-SemiExpanded.ttf'
-    font_path_subtitle = './app/assets/Brice-SemiBoldExpanded.ttf'
-    font_path_text = './app/assets/Brice-Regular-SemiExpanded.ttf'
+    font_path_title = '../assets/Brice-Bold-SemiExpanded.ttf'
+    font_path_subtitle = '../assets/Brice-SemiBoldExpanded.ttf'
+    font_path_text = '../assets/Brice-Regular-SemiExpanded.ttf'
 
     # Verificar se os arquivos de fonte existem
     if not os.path.exists(font_path_title) or not os.path.exists(font_path_subtitle) or not os.path.exists(font_path_text):
@@ -319,17 +485,17 @@ def day_even_layout_1(place_names, dicas, day, number, api_key=GOOGLE_PLACE_API_
     img.paste(image1, image1_position)
     img.paste(image2, image2_position)
 
-    # Cores de fundo para cada seção de texto
-    background_color1 = '#03487a'  # Azul escuro para o texto superior direito
-    background_color2 = "white"  # Branco para o texto inferior esquerdo
+    # Obtém as cores principais
+    top_colors1 = get_top_colors(image1)
+    bg_color1, text_color1 = choose_colors(top_colors1)
 
     # Posições e tamanhos dos textos e retângulos
     section1_rect = [(540, 0), (1080, 540)]
     section2_rect = [(0, 540), (540, 1080)]
 
-    # Desenhar retângulos coloridos atrás dos textos (opcional)
-    draw.rectangle(section1_rect, fill=background_color1)
-    draw.rectangle(section2_rect, fill=background_color2)
+    # Desenhar retângulos coloridos atrás dos textos
+    draw.rectangle(section1_rect, fill=bg_color1)
+    draw.rectangle(section2_rect, fill=text_color1)
 
     # Fontes
     title_font = ImageFont.truetype(font_path_title, 23)
@@ -337,8 +503,8 @@ def day_even_layout_1(place_names, dicas, day, number, api_key=GOOGLE_PLACE_API_
     text_font = ImageFont.truetype(font_path_text, 18)
 
     # Títulos e Textos
-    title1 = f"Dicas para aproveitar {place_names[0]}"
-    title2 = f"Dicas para aproveitar {place_names[1]}"
+    title1 = f"Tarde: {place_names[0]}"
+    title2 = f"Noite: {place_names[1]}"
 
     text1 = dicas[0]
     text2 = dicas[1]
@@ -353,16 +519,37 @@ def day_even_layout_1(place_names, dicas, day, number, api_key=GOOGLE_PLACE_API_
     max_text_width1 = 540 - 40  # 540px de largura total menos 20px de cada lado
     max_text_width2 = 540 - 40  # 540px de largura total menos 20px de cada lado
 
-    wrapped_title1 = wrap_text_by_words(title1, max_text_width1, draw, title_font)
-    wrapped_title2 = wrap_text_by_words(title2, max_text_width2, draw, title_font)
+    draw_text(draw, title1, title1_position, title_font, max_text_width1, text_color1)
+    draw_text(draw, text1, text1_position, text_font, max_text_width1, text_color1)
+    draw_text(draw, title2, title2_position, title_font, max_text_width2, bg_color1)
+    draw_text(draw, text2, text2_position, text_font, max_text_width2, bg_color1)
 
-    draw.text(title1_position, wrapped_title1, font=title_font, fill='white')
-    draw_text_with_subtitles(draw, text1_position, text1, text_font, subtitle_font, 'white', max_text_width1)
-    draw.text(title2_position, wrapped_title2, font=title_font, fill='#03487a')
-    draw_text_with_subtitles(draw, text2_position, text2, text_font, subtitle_font, '#03487a', max_text_width2)
+    # Adicionar caixa com "Dia X" no meio do layout
+    day_box_width, day_box_height = 130, 50
+    day_box_position = ((image_width - day_box_width) // 2, (image_height - day_box_height) // 2 - 20)
+    day_box = [(day_box_position[0], day_box_position[1]), 
+                (day_box_position[0] + day_box_width, day_box_position[1] + day_box_height)]
+
+    draw.rectangle(day_box, fill=bg_color1, outline="white")
+    day_font = ImageFont.truetype(font_path_title, 25)
+    day_text_size = draw.textbbox((0, 0), dia_text, font=day_font)
+    day_text_position = (
+        day_box_position[0] + (day_box_width - (day_text_size[2] - day_text_size[0])) // 2,
+        day_box_position[1] + (day_box_height - (day_text_size[3] - day_text_size[1])) // 2
+    )
+    draw.text(day_text_position, dia_text, font=day_font, fill="white")
+
+    # Carregar e redimensionar a logo
+    logo_image = Image.open(logo_path).convert("RGBA")
+    logo_image = logo_image.resize((180, 200))  # Ajuste o tamanho conforme necessário
+    logo_x = 850
+    logo_y = 950  
+
+    # Colar a logo na imagem
+    img.paste(logo_image, (logo_x, logo_y), logo_image)
 
     # Salvar a imagem final
-    output_path = f"./app/dados/{number}/day_even_{day}.png"
+    output_path = f"../dados/{number}/day_even_{day}.png"
     img.save(output_path)
 
     # Mostrar a imagem final
@@ -373,9 +560,12 @@ def close_layout_1(place_names, number, api_key=GOOGLE_PLACE_API_KEY):
     # Obter as imagens usando os nomes dos lugares
     images = [get_place_photo(api_key, place_name) for place_name in place_names]
 
+    # Caminho para a logo
+    logo_path = '../assets/logoVamo.png'
+
     # Caminhos para as fontes
-    font_path_title = './app/assets/Brice-SemiBoldExpanded.ttf'
-    font_path_subtitle = './app/assets/Brice-SemiBoldExpanded.ttf'
+    font_path_title = '../assets/Brice-SemiBoldExpanded.ttf'
+    font_path_subtitle = '../assets/Brice-SemiBoldExpanded.ttf'
 
     # Verificar se os arquivos de fonte existem
     if not os.path.exists(font_path_title) or not os.path.exists(font_path_subtitle):
@@ -400,9 +590,13 @@ def close_layout_1(place_names, number, api_key=GOOGLE_PLACE_API_KEY):
     img.paste(image1, image1_position)
     img.paste(image2, image2_position)
 
+    # Obtém as cores principais
+    top_colors1 = get_top_colors(image1)
+    bg_color1, text_color1 = choose_colors(top_colors1)
+
     # Cores de fundo para cada seção de texto
-    background_color1 = "#3871C1"  # Azul escuro
-    background_color2 = "white"  # Bege claro
+    background_color1 = bg_color1 
+    background_color2 = text_color1  
 
     # Posições e tamanhos dos textos e retângulos
     section1_rect = [(0, 0), (540, 675)]
@@ -428,11 +622,20 @@ def close_layout_1(place_names, number, api_key=GOOGLE_PLACE_API_KEY):
     max_text_width = 540 - 40  # 540px de largura total menos 20px de cada lado
 
     # Desenhar os títulos e textos na imagem
-    draw_text(draw, title1, title1_position, title_font, max_text_width, 'white')
-    draw_text(draw, subtitle1, subtitle1_position, subtitle_font, image_width - 40, '#3871C1')
+    draw_text(draw, title1, title1_position, title_font, max_text_width, text_color1)
+    draw_text(draw, subtitle1, subtitle1_position, subtitle_font, image_width - 40, bg_color1)
+
+    # Carregar e redimensionar a logo
+    logo_image = Image.open(logo_path).convert("RGBA")
+    logo_image = logo_image.resize((200, 220))  # Ajuste o tamanho conforme necessário
+    logo_x = 20
+    logo_y = 1200  
+
+    # Colar a logo na imagem
+    img.paste(logo_image, (logo_x, logo_y), logo_image)
 
     # Salvar a imagem final
-    output_path = f"./app/dados/{number}/close_layout1.png"
+    output_path = f"../dados/{number}/close_layout1.png"
     img.save(output_path)
 
     # Mostrar a imagem final
@@ -444,7 +647,7 @@ def generate_pdf(images, number):
     layouts = [Image.open(image).convert('RGB') for image in images]
 
     # Salvar as imagens em um PDF
-    pdf_path = f'./app/dados/{number}/{number}.pdf'
+    pdf_path = f'../dados/{number}/{number}.pdf'
     layouts[0].save(pdf_path, save_all=True, append_images=layouts[1:])
 
 def generate_itineray(roteiro, number):
@@ -456,10 +659,10 @@ def generate_itineray(roteiro, number):
     while len(atracoes) < 4:
         atracoes.append(roteiro.get('roteiro').get(dia).get('atracoes')[count])
         count += 1
-    #print(atracoes)
     capa_path = capa_layout_1(atracoes, number)
     count_even_days = 0
     count_odd_days = 0
+
     days_even_paths = []
     days_odd_paths = []
 
@@ -467,14 +670,17 @@ def generate_itineray(roteiro, number):
         cidade = roteiro.get('roteiro').get(dia).get('Cidade')
         atracoes = roteiro.get('roteiro').get(dia).get('atracoes')
         dicas = roteiro.get('roteiro').get(dia).get('dicas')
+        
+        # Gerar o texto dinâmico para "Dia X"
+        dia_text = f"Dia {index + 1}"
+
         if index % 2 != 0:
-            print(atracoes, dicas)
             count_odd_days +=1
-            path = day_odd_layout_1(atracoes, dicas, count_odd_days, number)
+            path = day_odd_layout_1(atracoes, dicas, count_odd_days, dia_text, number)
             days_even_paths.append(path)
         elif index % 2 == 0:
             count_even_days +=1
-            path = day_even_layout_1(atracoes, dicas, count_even_days, number)
+            path = day_even_layout_1(atracoes, dicas, count_even_days, dia_text, number)
             days_odd_paths.append(path)
             
     cidade = roteiro.get('roteiro').get('dia_02').get('Cidade')
@@ -497,6 +703,22 @@ def generate_itineray(roteiro, number):
     final_paths.append(close_path)
 
     generate_pdf(final_paths, number)
+
+def generate_day_text(index):
+    # Dicionário para mapeamento de números para palavras
+    day_words = {
+        0: "Primeiro",
+        1: "Segundo",
+        2: "Terceiro",
+        3: "Quarto",
+        4: "Quinto",
+        5: "Sexto",
+        6: "Sétimo",
+        7: "Oitavo"
+    }
+    
+    # Obter a palavra correspondente ao índice
+    return day_words.get(index, f"{index + 1}º")
 
 """
 resp_gpt = {
@@ -572,5 +794,6 @@ resp_gpt = {
     }
   }
 }
+
+generate_itineray(resp_gpt, '1')
 """
-#generate_itineray(resp_gpt)
