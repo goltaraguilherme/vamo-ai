@@ -17,10 +17,10 @@ from .model import Chats, Messages, db
 webhook_blueprint = Blueprint("webhook", __name__)
 
 (START,
+ROTEIRO_PERSONALIZADO_CIDADES,
 ROTEIRO_PERSONALIZADO_PREFERENCIAS,
 ROTEIRO_PERSONALIZADO_COMPANHIA,
 ROTEIRO_PERSONALIZADO_DURACAO,
-ROTEIRO_PERSONALIZADO_CIDADES,
 ROTEIRO_PERSONALIZADO_FINALIZACAO) = range(6)
 
 def handle_message():
@@ -85,15 +85,16 @@ def handle_message():
             #logging.info(f"teste: {message}")
             message_body = message["text"]["body"] if 'text' in message else message["interactive"]["list_reply"]["title"]
             if(state == START and message_body.upper() == "ROTEIRO PERSONALIZADO"):
+                state = ROTEIRO_PERSONALIZADO_CIDADES
+            elif(state == ROTEIRO_PERSONALIZADO_CIDADES):
                 state = ROTEIRO_PERSONALIZADO_PREFERENCIAS
             elif(state == ROTEIRO_PERSONALIZADO_PREFERENCIAS):
                 state = ROTEIRO_PERSONALIZADO_COMPANHIA
             elif(state == ROTEIRO_PERSONALIZADO_COMPANHIA):
                 state = ROTEIRO_PERSONALIZADO_DURACAO
             elif(state == ROTEIRO_PERSONALIZADO_DURACAO):
-                state = ROTEIRO_PERSONALIZADO_CIDADES
-            elif(state == ROTEIRO_PERSONALIZADO_CIDADES):
                 state = ROTEIRO_PERSONALIZADO_FINALIZACAO
+
             
             if chat:
                 chat.state = state

@@ -4,20 +4,22 @@ import requests
 from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 from io import BytesIO
 from collections import Counter
+from dotenv import load_dotenv
 
+load_dotenv()
 
-GOOGLE_PLACE_API_KEY = "AIzaSyB3fFwNUxFRONrvSdFw_Cij08LvPYZ8X8g"
+GOOGLE_PLACE_API_KEY = os.getenv("GOOGLE_PLACE_API_KEY")
 
 def get_place_id(api_key, place_name):
     try:
         place_name = f"{place_name}, Domingos Martins" if place_name.upper() == "PEDRA AZUL" else place_name
-        place_name = f"{place_name}, Vitoria" if place_name.upper() == "PRAIA DE CAMBURI" else place_name
+        place_name = f"{place_name}, Vitoria" if place_name in ["Praia de Camburi", "Triângulo das Bermudas"] else place_name
         place_search_url = f'https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input={place_name}&inputtype=textquery&fields=place_id&key={api_key}'
         response = requests.get(place_search_url)
         place_id = response.json()['candidates'][0]['place_id']
         return place_id
     except:
-        response.raise_for_status()
+        print(response.raise_for_status())
 
 
 def get_place_photo(api_key, place_name, max_width=1024):
@@ -26,12 +28,15 @@ def get_place_photo(api_key, place_name, max_width=1024):
         place_details_url = f'https://maps.googleapis.com/maps/api/place/details/json?place_id={place_id}&fields=photos&key={api_key}'
         response = requests.get(place_details_url)
         photo_reference = response.json()['result']['photos'][0]['photo_reference']
-        photo_url = f'https://maps.googleapis.com/maps/api/place/photo?maxwidth={max_width}&photoreference={photo_reference}&key={api_key}'
-        photo_response = requests.get(photo_url)
-        return Image.open(BytesIO(photo_response.content))
+        try:  
+          photo_url = f'https://maps.googleapis.com/maps/api/place/photo?maxwidth={max_width}&photoreference={photo_reference}&key={api_key}'
+          photo_response = requests.get(photo_url)
+          return Image.open(BytesIO(photo_response.content))
+        except:
+          print(photo_response.raise_for_status())
     except:
-        response.raise_for_status()
-        photo_response.raise_for_status()
+        print(response.raise_for_status())
+
     
 
 def round_corners(image, radius):
@@ -169,7 +174,7 @@ def get_text_color(bg_color):
     # Calcula a luminância da cor de fundo
     luminance = 0.299 * bg_color[0] + 0.587 * bg_color[1] + 0.114 * bg_color[2]
     # Retorna branco para fundos escuros e branco para fundos claros novamente
-    return (255, 255, 255) if luminance < 128 else (255, 255, 255)
+    return (255, 255, 255) if luminance < 128 else (0, 50, 200)
 
 # Função para decidir qual cor usar como fundo e como texto
 def choose_colors(top_colors):
@@ -189,10 +194,10 @@ def choose_colors(top_colors):
 # Função para criar um layout de capa
 def capa_layout_1(place_names, number, api_key=GOOGLE_PLACE_API_KEY):
     # Caminho para a logo
-    logo_path = '../assets/logoVamo.png'
+    logo_path = './app/assets/logoVamo.png'
     # Caminhos para as fontes
-    font_path = '../assets/Brice-Regular-SemiExpanded.ttf'
-    font_path2 = '../assets/Brice-Bold-SemiExpanded.ttf'
+    font_path = './app/assets/Brice-Regular-SemiExpanded.ttf'
+    font_path2 = './app/assets/Brice-Bold-SemiExpanded.ttf'
 
     # Verificar se os arquivos de fonte existem
     if not os.path.exists(font_path):
@@ -206,7 +211,7 @@ def capa_layout_1(place_names, number, api_key=GOOGLE_PLACE_API_KEY):
     
     # Obter as imagens usando os nomes dos lugares
     images = [get_place_photo(api_key, place_name) for place_name in place_names]
-
+    print(images)
     # Carregar a imagem de fundo
     background = images[3].resize((1080, 1080))
 
@@ -250,9 +255,9 @@ def capa_layout_1(place_names, number, api_key=GOOGLE_PLACE_API_KEY):
     # Textos
     title_text = "VOCÊ SONHA E NÓS REALIZAMOS!"
     subtitle_text = "A VIAGEM DOS SEUS SONHOS ESTÁ AQUI!"
-    desc1_text = place_names[0]
-    desc2_text = place_names[1]
-    desc3_text = place_names[2]
+    desc1_text = place_names[0].split(',')[0]
+    desc2_text = place_names[1].split(',')[0]
+    desc3_text = place_names[2].split(',')[0]
 
     wrapped_title_text = wrap_text_by_words1(title_text, 2)
     wrapped_subtitle_text = textwrap.fill(subtitle_text, width=25)
@@ -276,9 +281,9 @@ def capa_layout_1(place_names, number, api_key=GOOGLE_PLACE_API_KEY):
     draw.text(desc2_position, wrapped_desc2_text, font=desc_font, fill='white')
     draw.text(desc3_position, wrapped_desc3_text, font=desc_font, fill='white')
 
-    os.makedirs(f"../dados/{number}", exist_ok=True)
+    os.makedirs(f"./app/dados/{number}", exist_ok=True)
     # Salvar a imagem final
-    output_path = f"../dados/{number}/capaTeste.png"
+    output_path = f"./app/dados/{number}/capaTeste.png"
     img.save(output_path)
 
     return output_path
@@ -286,20 +291,20 @@ def capa_layout_1(place_names, number, api_key=GOOGLE_PLACE_API_KEY):
     # Mostrar a imagem final
     #img.show()
 
-def morning_layout_1(place_names, dicas, dia_text, day_index, api_key=GOOGLE_PLACE_API_KEY):
+def morning_layout_1(place_names, atividade, dicas, day_index, number, api_key=GOOGLE_PLACE_API_KEY):
 #Testar para ver se as cores ficaram certas
 #talvez para o titulo usar uma 3 cor mais presente na imagem
 
     # Caminho das imagens
     images = [get_place_photo(api_key, place_name) for place_name in place_names]
 
-    logo_path = '../assets/logoVamo.png'  # Caminho para a logo
+    logo_path = './app/assets/logoVamo.png'  # Caminho para a logo
     # Carregar a imagem que será incluída na parte inferior
     bottom_image = images[0].resize((1080, 600))  # Redimensionar a imagem se necessário
 
     # Configurações de fonte
-    font_path = '../assets/Brice-Bold-SemiExpanded.ttf'
-    font_path2 = '../assets/Brice-Regular-SemiExpanded.ttf'
+    font_path = './app/assets/Brice-Bold-SemiExpanded.ttf'
+    font_path2 = './app/assets/Brice-Regular-SemiExpanded.ttf'
     title_font = ImageFont.truetype(font_path, 35)
     subtitle_font = ImageFont.truetype(font_path, 30)
     body_font = ImageFont.truetype(font_path2, 25)
@@ -318,8 +323,8 @@ def morning_layout_1(place_names, dicas, dia_text, day_index, api_key=GOOGLE_PLA
 
     dia_text = generate_day_text(day_index)
     title_text = f"{dia_text} dia de viagem!"  
-    subtitle_text = f"Manhã: {place_names[0]} "  
-    body_text = dicas[0]
+    subtitle_text = f"Manhã: {atividade} "  
+    body_text = dicas
 
     # Centralizar o título
     title_width, title_height = draw.textbbox((0, 0), title_text, font=title_font)[2:4]
@@ -347,18 +352,20 @@ def morning_layout_1(place_names, dicas, dia_text, day_index, api_key=GOOGLE_PLA
     new_image.paste(logo_image, (logo_x, logo_y), logo_image)
 
     # Salvar a nova imagem
-    new_image.save('../dados/{number}/morning_{day}.png')
-    new_image.show()
+    output_path = f'./app/dados/{number}/morning_{day_index}.png'
+    new_image.save(output_path)
+    
+    return output_path
 
-def day_odd_layout_1(place_names, dicas, day, dia_text, number, api_key=GOOGLE_PLACE_API_KEY):
+def day_odd_layout_1(place_names, atividades, dicas, day, dia_text, number, api_key=GOOGLE_PLACE_API_KEY):
     # Obter as imagens usando os nomes dos lugares
     images = [get_place_photo(api_key, place_name) for place_name in place_names]
 
     # Caminhos para as imagens e fon
-    logo_path = "../assets/logoVamo.png"  # Caminho para a logo
-    font_path_title = '../assets/Brice-Bold-SemiExpanded.ttf'
-    font_path_subtitle = '../assets/Brice-SemiBoldExpanded.ttf'
-    font_path_text = '../assets/Brice-Regular-SemiExpanded.ttf'
+    logo_path = "./app/assets/logoVamo.png"  # Caminho para a logo
+    font_path_title = './app/assets/Brice-Bold-SemiExpanded.ttf'
+    font_path_subtitle = './app/assets/Brice-SemiBoldExpanded.ttf'
+    font_path_text = './app/assets/Brice-Regular-SemiExpanded.ttf'
 
     # Dimensões da nova imagem
     image_width, image_height = 1080, 1080
@@ -399,8 +406,8 @@ def day_odd_layout_1(place_names, dicas, day, dia_text, number, api_key=GOOGLE_P
     text_font = ImageFont.truetype(font_path_text, 18)
 
     # Títulos e Textos
-    title1 = f"Tarde: {place_names[0]}"
-    title2 = f"Noite: {place_names[1]}"
+    title1 = f"Tarde: {atividades[0]}"
+    title2 = f"Noite: {atividades[1]}"
     text1 = dicas[0]
     text2 = dicas[1]
 
@@ -425,7 +432,7 @@ def day_odd_layout_1(place_names, dicas, day, dia_text, number, api_key=GOOGLE_P
     day_box = [(day_box_position[0], day_box_position[1]), 
                 (day_box_position[0] + day_box_width, day_box_position[1] + day_box_height)]
 
-    draw.rectangle(day_box, fill=bg_color1, outline="white")
+    draw.rectangle(day_box, fill=(55, 148, 226), outline="white")
     day_font = ImageFont.truetype(font_path_title, 25)
     day_text_size = draw.textbbox((0, 0), dia_text, font=day_font)
     day_text_position = (
@@ -444,23 +451,23 @@ def day_odd_layout_1(place_names, dicas, day, dia_text, number, api_key=GOOGLE_P
     img.paste(logo_image, (logo_x, logo_y), logo_image)
 
     # Salvar a imagem final
-    output_path = f"../dados/{number}/day_odd_{day}.png"
+    output_path = f"./app/dados/{number}/day_odd_{day}.png"
     img.save(output_path)
     
     # Mostrar a imagem final
     #img.show()
     return output_path
 
-def day_even_layout_1(place_names, dicas, day, dia_text, number, api_key=GOOGLE_PLACE_API_KEY):
+def day_even_layout_1(place_names, atividades, dicas, day, dia_text, number, api_key=GOOGLE_PLACE_API_KEY):
     # Obter as imagens usando os nomes dos lugares
     images = [get_place_photo(api_key, place_name) for place_name in place_names]
 
     # Caminho para a logo
-    logo_path = '../assets/logoVamo.png'
+    logo_path = './app/assets/logoVamo.png'
     # Caminhos para as fontes
-    font_path_title = '../assets/Brice-Bold-SemiExpanded.ttf'
-    font_path_subtitle = '../assets/Brice-SemiBoldExpanded.ttf'
-    font_path_text = '../assets/Brice-Regular-SemiExpanded.ttf'
+    font_path_title = './app/assets/Brice-Bold-SemiExpanded.ttf'
+    font_path_subtitle = './app/assets/Brice-SemiBoldExpanded.ttf'
+    font_path_text = './app/assets/Brice-Regular-SemiExpanded.ttf'
 
     # Verificar se os arquivos de fonte existem
     if not os.path.exists(font_path_title) or not os.path.exists(font_path_subtitle) or not os.path.exists(font_path_text):
@@ -503,8 +510,8 @@ def day_even_layout_1(place_names, dicas, day, dia_text, number, api_key=GOOGLE_
     text_font = ImageFont.truetype(font_path_text, 18)
 
     # Títulos e Textos
-    title1 = f"Tarde: {place_names[0]}"
-    title2 = f"Noite: {place_names[1]}"
+    title1 = f"Tarde: {atividades[0]}"
+    title2 = f"Noite: {atividades[1]}"
 
     text1 = dicas[0]
     text2 = dicas[1]
@@ -530,7 +537,7 @@ def day_even_layout_1(place_names, dicas, day, dia_text, number, api_key=GOOGLE_
     day_box = [(day_box_position[0], day_box_position[1]), 
                 (day_box_position[0] + day_box_width, day_box_position[1] + day_box_height)]
 
-    draw.rectangle(day_box, fill=bg_color1, outline="white")
+    draw.rectangle(day_box, fill=(55, 148, 226), outline="white")
     day_font = ImageFont.truetype(font_path_title, 25)
     day_text_size = draw.textbbox((0, 0), dia_text, font=day_font)
     day_text_position = (
@@ -549,7 +556,7 @@ def day_even_layout_1(place_names, dicas, day, dia_text, number, api_key=GOOGLE_
     img.paste(logo_image, (logo_x, logo_y), logo_image)
 
     # Salvar a imagem final
-    output_path = f"../dados/{number}/day_even_{day}.png"
+    output_path = f"./app/dados/{number}/day_even_{day}.png"
     img.save(output_path)
 
     # Mostrar a imagem final
@@ -561,11 +568,11 @@ def close_layout_1(place_names, number, api_key=GOOGLE_PLACE_API_KEY):
     images = [get_place_photo(api_key, place_name) for place_name in place_names]
 
     # Caminho para a logo
-    logo_path = '../assets/logoVamo.png'
+    logo_path = './app/assets/logoVamo.png'
 
     # Caminhos para as fontes
-    font_path_title = '../assets/Brice-SemiBoldExpanded.ttf'
-    font_path_subtitle = '../assets/Brice-SemiBoldExpanded.ttf'
+    font_path_title = './app/assets/Brice-SemiBoldExpanded.ttf'
+    font_path_subtitle = './app/assets/Brice-SemiBoldExpanded.ttf'
 
     # Verificar se os arquivos de fonte existem
     if not os.path.exists(font_path_title) or not os.path.exists(font_path_subtitle):
@@ -635,7 +642,7 @@ def close_layout_1(place_names, number, api_key=GOOGLE_PLACE_API_KEY):
     img.paste(logo_image, (logo_x, logo_y), logo_image)
 
     # Salvar a imagem final
-    output_path = f"../dados/{number}/close_layout1.png"
+    output_path = f"./app/dados/{number}/close_layout1.png"
     img.save(output_path)
 
     # Mostrar a imagem final
@@ -647,62 +654,87 @@ def generate_pdf(images, number):
     layouts = [Image.open(image).convert('RGB') for image in images]
 
     # Salvar as imagens em um PDF
-    pdf_path = f'../dados/{number}/{number}.pdf'
+    pdf_path = f'./app/dados/{number}/{number}.pdf'
     layouts[0].save(pdf_path, save_all=True, append_images=layouts[1:])
 
-def generate_itineray(roteiro, number):
-    dias = roteiro.get('roteiro').keys()
-    atracoes = []
-    for index, dia in enumerate(dias):
-        atracoes.append(roteiro.get('roteiro').get(dia).get('atracoes')[0])
-    count = 1
-    while len(atracoes) < 4:
-        atracoes.append(roteiro.get('roteiro').get(dia).get('atracoes')[count])
-        count += 1
-    capa_path = capa_layout_1(atracoes, number)
-    count_even_days = 0
-    count_odd_days = 0
+def generate_itinerary(roteiro, number):
+    try:
+      dias = roteiro.get('roteiro').keys()
+      print(dias)
+      atracoes = []
+      for index, dia in enumerate(dias):
+          print(index, dia)
+          atracoes.append(roteiro.get('roteiro').get(dia).get("tarde").get("localizacao"))
+      if(len(atracoes) < 4): atracoes.append(roteiro.get('roteiro').get("dia_01").get("noite").get("localizacao"))
+      print(atracoes)
+      capa_path = capa_layout_1(atracoes, number)
+      count_even_days = 0
+      count_odd_days = 0
 
-    days_even_paths = []
-    days_odd_paths = []
+      days_even_paths = []
+      days_odd_paths = []
+      morning_paths = []
+      turnos = ["manha", "tarde", "noite"]
+      
+      for index, dia in enumerate(dias):
+          atracoes = []
+          atividades = []
+          dicas = []
+          #cidade = roteiro.get('roteiro').get(dia).get('Cidade')[0]
 
-    for index, dia in enumerate(dias):
-        cidade = roteiro.get('roteiro').get(dia).get('Cidade')
-        atracoes = roteiro.get('roteiro').get(dia).get('atracoes')
-        dicas = roteiro.get('roteiro').get(dia).get('dicas')
-        
-        # Gerar o texto dinâmico para "Dia X"
-        dia_text = f"Dia {index + 1}"
+          for turno in turnos:
+            atividade = roteiro.get('roteiro').get(dia).get(turno).get("atividade")
+            local = roteiro.get('roteiro').get(dia).get(turno).get("localizacao")
+            dica = ". ".join(roteiro.get('roteiro').get(dia).get(turno).get("comentarios"))
+            if turno == "manha": 
+              path = morning_layout_1([local], atividade, dica, index, number)
+              morning_paths.append(path)
+            else:
+              dicas.append(dica)
+              atracoes.append(local)
+              atividades.append(atividade)
 
-        if index % 2 != 0:
-            count_odd_days +=1
-            path = day_odd_layout_1(atracoes, dicas, count_odd_days, dia_text, number)
-            days_even_paths.append(path)
-        elif index % 2 == 0:
-            count_even_days +=1
-            path = day_even_layout_1(atracoes, dicas, count_even_days, dia_text, number)
-            days_odd_paths.append(path)
-            
-    cidade = roteiro.get('roteiro').get('dia_02').get('Cidade')
-    atracoes = roteiro.get('roteiro').get('dia_02').get('atracoes')
-    atracoes.append(cidade[0])
-    close_path = close_layout_1(atracoes, number)
-    final_paths = []
-    final_paths.append(capa_path)
+          # Gerar o texto dinâmico para "Dia X"
+          dia_text = f"Dia {index + 1}"
 
-    tamanho_max = max(len(days_odd_paths), len(days_even_paths))
-    
-    # Itera sobre o tamanho máximo dos vetores
-    for i in range(tamanho_max):
-        # Adiciona o elemento do primeiro vetor se existir
-        if i < len(days_odd_paths):
-            final_paths.append(days_odd_paths[i])
-        # Adiciona o elemento do segundo vetor se existir
-        if i < len(days_even_paths):
-            final_paths.append(days_even_paths[i])
-    final_paths.append(close_path)
+          if index % 2 != 0:
+              count_odd_days +=1
+              path = day_odd_layout_1(atracoes, atividades, dicas, count_odd_days, dia_text, number)
+              days_even_paths.append(path)
+          elif index % 2 == 0:
+              count_even_days +=1
+              path = day_even_layout_1(atracoes, atividades, dicas, count_even_days, dia_text, number)
+              days_odd_paths.append(path)
+              
+      """atracoes = []
+      cidade = roteiro.get('roteiro').get('dia_02').get('Cidade')[0]
+      atracoes.append(list(roteiro.get('roteiro').get('dia_02').get('detalhes')[0].get("Tarde").keys())[0]+f", {cidade}")
+      atracoes.append(cidade)
+      close_path = close_layout_1(atracoes, number)
+      """
+      final_paths = []
+      final_paths.append(capa_path)
+      
+      tamanho_max = max(len(days_odd_paths), len(days_even_paths))
+      
+      count_mornings = 0
+      # Itera sobre o tamanho máximo dos vetores
+      for i in range(tamanho_max):
+          # Adiciona o elemento do primeiro vetor se existir
+          if i < len(days_odd_paths):
+              final_paths.append(morning_paths[count_mornings])
+              count_mornings += 1
+              final_paths.append(days_odd_paths[i])
+          # Adiciona o elemento do segundo vetor se existir
+          if i < len(days_even_paths):
+              final_paths.append(morning_paths[count_mornings])
+              count_mornings += 1
+              final_paths.append(days_even_paths[i])
+      #final_paths.append(close_path)
 
-    generate_pdf(final_paths, number)
+      generate_pdf(final_paths, number)
+    except:
+      print('error')
 
 def generate_day_text(index):
     # Dicionário para mapeamento de números para palavras
@@ -718,82 +750,160 @@ def generate_day_text(index):
     }
     
     # Obter a palavra correspondente ao índice
-    return day_words.get(index, f"{index + 1}º")
+    return day_words.get(index, f"{index}º")
 
-"""
 resp_gpt = {
+  "destino": "Espírito Santo, Brasil",
+  "data": "15 a 21 de setembro de 2024",
   "roteiro": {
     "dia_01": {
-      "Cidade": ["Vitória"],
-      "atracoes": ["Praia de Camburi", "Parque Pedra da Cebola", "Centro Histórico de Vitória"],
-      "descricoes": [
-        "A Praia de Camburi é a principal praia de Vitória, com uma extensa faixa de areia e ótima infraestrutura.",
-        "O Parque Pedra da Cebola é um espaço verde ideal para caminhadas, piqueniques e apreciar a vista da cidade.",
-        "O Centro Histórico de Vitória possui importantes edificações e igrejas, como a Catedral Metropolitana."
-      ],
-      "descricoes_historicas": [
-        "Vitória, a capital do Espírito Santo, foi fundada em 1551 e possui um rico patrimônio histórico.",
-        "A Catedral Metropolitana de Vitória, construída em estilo neogótico, é um dos principais marcos históricos da cidade."
-      ],
-      "dicas": [
-        "Leve protetor solar e água para se manter hidratado na praia.",
-        "Use roupas confortáveis para explorar o parque e o centro histórico.",
-        "Prove a moqueca capixaba em um dos restaurantes locais."
-      ]
+      "manha": {
+        "atividade": "Chegada ao hotel e check-in. Caminhada pela Praia da Costa em Vila Velha, visitando as barracas de praia e apreciando a vista.",
+        "localizacao": "Praia da Costa, Vila Velha",
+        "comentarios": [
+          "Praia da Costa é uma das praias mais conhecidas do Espírito Santo e oferece uma bela vista do Atlântico.",
+          "A região possui várias barracas que servem comidas e bebidas típicas.",
+          "É um ótimo local para começar a explorar o clima de praia e relaxar após a viagem."
+        ]
+      },
+      "tarde": {
+        "atividade": "Visita ao Convento da Penha, um dos santuários mais antigos do Brasil, com uma vista panorâmica da região.",
+        "localizacao": "Convento da Penha, Vila Velha",
+        "comentarios": [
+          "O Convento da Penha foi fundado em 1558 e é um importante marco histórico e religioso.",
+          "A vista do alto do convento é espetacular, abrangendo a cidade e o mar.",
+          "É um local de peregrinação e oferece uma experiência cultural e espiritual única."
+        ]
+      },
+      "noite": {
+        "atividade": "Jantar no restaurante 'Pirão', conhecido por suas comidas típicas capixabas, como a moqueca.",
+        "localizacao": "Restaurante Pirão, Vila Velha",
+        "comentarios": [
+          "O restaurante Pirão é famoso por suas especialidades em frutos do mar.",
+          "Provar a moqueca capixaba é uma experiência gastronômica imperdível.",
+          "O ambiente é acolhedor e perfeito para uma noite tranquila."
+        ]
+      }
     },
     "dia_02": {
-      "Cidade": ["Vila Velha"],
-      "atracoes": ["Praia da Costa", "Convento da Penha", "Fábrica de Chocolates Garoto"],
-      "descricoes": [
-        "A Praia da Costa é uma das praias mais famosas do Espírito Santo, conhecida por sua beleza e estrutura.",
-        "O Convento da Penha é um dos santuários religiosos mais antigos do Brasil, situado no alto de um morro com vista panorâmica.",
-        "A Fábrica de Chocolates Garoto oferece visitas guiadas onde é possível conhecer o processo de produção e degustar chocolates."
-      ],
-      "descricoes_historicas": [
-        "O Convento da Penha, fundado em 1558, é um dos locais de peregrinação mais importantes do Espírito Santo."
-      ],
-      "dicas": [
-        "Use calçados confortáveis para subir até o Convento da Penha.",
-        "Leve uma câmera fotográfica para capturar as vistas panorâmicas.",
-        "Na fábrica da Garoto, compre chocolates a preços mais acessíveis na loja de fábrica."
-      ]
+      "manha": {
+        "atividade": "Passeio pela Praça do Papa e Parque da Fonte Grande, em Vitória.",
+        "localizacao": "Praça do Papa, Vitória",
+        "comentarios": [
+          "A Praça do Papa oferece uma bela vista do mar e da cidade de Vitória.",
+          "O Parque da Fonte Grande é uma ótima opção para caminhadas e trilhas.",
+          "O local é perfeito para fotos e um início de dia relaxante."
+        ]
+      },
+      "tarde": {
+        "atividade": "Visita ao Palácio Anchieta, sede do governo do estado e um dos prédios históricos mais importantes.",
+        "localizacao": "Palácio Anchieta, Vitória",
+        "comentarios": [
+          "O Palácio Anchieta é um dos mais antigos edifícios em funcionamento no Brasil.",
+          "Foi construído no século XVI e possui uma rica história política e cultural.",
+          "Oferece visitas guiadas que proporcionam um mergulho na história capixaba."
+        ]
+      },
+      "noite": {
+        "atividade": "Jantar no 'Caranguejo do Assis', restaurante famoso por seus pratos de frutos do mar.",
+        "localizacao": "Caranguejo do Assis, Vitória",
+        "comentarios": [
+          "O Caranguejo do Assis é renomado pelos pratos com caranguejo e outros frutos do mar.",
+          "É uma ótima oportunidade para degustar a culinária local em um ambiente descontraído.",
+          "Os pratos são bem servidos e o atendimento é elogiado."
+        ]
+      }
     },
     "dia_03": {
-      "Cidade": ["Guarapari"],
-      "atracoes": ["Praia do Morro", "Praia da Areia Preta", "Praia de Meaípe"],
-      "descricoes": [
-        "A Praia do Morro é uma das mais movimentadas de Guarapari, com quiosques e opções de esportes aquáticos.",
-        "A Praia da Areia Preta é conhecida pelas suas areias monazíticas, que dizem ter propriedades terapêuticas.",
-        "A Praia de Meaípe é famosa por suas águas calmas e pelos restaurantes de frutos do mar."
-      ],
-      "descricoes_historicas": [
-        "Guarapari é conhecida como a 'Cidade Saúde' devido às propriedades medicinais de suas areias monazíticas."
-      ],
-      "dicas": [
-        "Chegue cedo para garantir um bom lugar nas praias mais populares.",
-        "Experimente a culinária local, especialmente os pratos de frutos do mar.",
-        "Aproveite para fazer caminhadas ao longo das praias e apreciar a natureza."
-      ]
+      "manha": {
+        "atividade": "Exploração do Parque Estadual da Pedra Azul, famoso por suas trilhas e formações rochosas.",
+        "localizacao": "Parque Estadual da Pedra Azul, Domingos Martins",
+        "comentarios": [
+          "O parque é conhecido pela Pedra Azul, uma imponente formação rochosa que muda de cor conforme a luz do sol.",
+          "As trilhas oferecem diferentes níveis de dificuldade, todas com paisagens deslumbrantes.",
+          "É um local perfeito para amantes da natureza e fotografia."
+        ]
+      },
+      "tarde": {
+        "atividade": "Almoço em um dos restaurantes de Domingos Martins, conhecida pela influência da cultura alemã.",
+        "localizacao": "Domingos Martins",
+        "comentarios": [
+          "Domingos Martins tem uma forte influência alemã, visível na arquitetura e culinária.",
+          "Os restaurantes locais oferecem pratos típicos como salsichas e chucrute.",
+          "É um ótimo lugar para experimentar algo diferente e apreciar a cultura local."
+        ]
+      },
+      "noite": {
+        "atividade": "Passeio noturno pelo centro de Domingos Martins, com suas lojas de artesanato e produtos locais.",
+        "localizacao": "Centro de Domingos Martins",
+        "comentarios": [
+          "O centro da cidade é encantador, com lojas que vendem artesanato e produtos típicos da região.",
+          "À noite, a cidade tem uma atmosfera tranquila e charmosa.",
+          "É um ótimo momento para comprar lembranças e conhecer os moradores locais."
+        ]
+      }
     },
     "dia_04": {
-      "Cidade": ["Domingos Martins"],
-      "atracoes": ["Pedra Azul", "Rota do Lagarto", "Centro de Domingos Martins"],
-      "descricoes": [
-        "A Pedra Azul é um dos cartões-postais do Espírito Santo, com trilhas e paisagens deslumbrantes.",
-        "A Rota do Lagarto é uma estrada turística com belas vistas, pousadas e restaurantes.",
-        "O Centro de Domingos Martins tem um charme europeu, com construções em estilo enxaimel e uma atmosfera acolhedora."
-      ],
-      "descricoes_historicas": [
-        "Domingos Martins foi colonizada por imigrantes alemães e italianos, refletindo em sua arquitetura e cultura."
-      ],
-      "dicas": [
-        "Use roupas e calçados apropriados para trilhas na Pedra Azul.",
-        "Prove as delícias da culinária alemã e italiana nos restaurantes locais.",
-        "Reserve um tempo para explorar as lojinhas e cafés no centro de Domingos Martins."
-      ]
+      "manha": {
+        "atividade": "Visita ao Projeto Tamar, em Vitória, para conhecer sobre a preservação das tartarugas marinhas.",
+        "localizacao": "Projeto Tamar, Vitória",
+        "comentarios": [
+          "O Projeto Tamar é uma importante iniciativa de conservação das tartarugas marinhas no Brasil.",
+          "Os visitantes podem aprender sobre as espécies de tartarugas e os esforços de preservação.",
+          "É uma atividade educativa e inspiradora, especialmente para quem se interessa por vida marinha."
+        ]
+      },
+      "tarde": {
+        "atividade": "Passeio pela Praia de Camburi, com paradas em cafés e quiosques.",
+        "localizacao": "Praia de Camburi, Vitória",
+        "comentarios": [
+          "A Praia de Camburi é a mais extensa da capital capixaba e muito frequentada por moradores e turistas.",
+          "É um ótimo local para caminhadas e desfrutar de um dia de sol.",
+          "Os cafés e quiosques ao longo da praia oferecem diversas opções de lanches e bebidas."
+        ]
+      },
+      "noite": {
+        "atividade": "Jantar no 'Argento Parrilla', especializado em carnes argentinas.",
+        "localizacao": "Argento Parrilla, Vitória",
+        "comentarios": [
+          "O Argento Parrilla é conhecido pela qualidade de suas carnes e o estilo argentino de preparo.",
+          "É uma excelente escolha para quem aprecia um bom churrasco.",
+          "O ambiente é aconchegante e o serviço é altamente elogiado."
+        ]
+      }
+    },
+    "dia_05": {
+      "manha": {
+        "atividade": "Visita ao Parque Botânico Vale, com trilhas e um belo jardim botânico.",
+        "localizacao": "Parque Botânico Vale, Vitória",
+        "comentarios": [
+          "O Parque Botânico Vale oferece diversas trilhas em meio à natureza e um jardim botânico bem cuidado.",
+          "É uma excelente opção para um passeio relaxante em contato com a natureza.",
+          "O parque também promove atividades de educação ambiental."
+        ]
+      },
+      "tarde": {
+        "atividade": "Almoço no restaurante 'Barroco', que serve pratos tradicionais capixabas.",
+        "localizacao": "Restaurante Barroco, Vitória",
+        "comentarios": [
+          "O restaurante Barroco é famoso pela culinária capixaba autêntica.",
+          "Oferece uma variedade de pratos típicos, com destaque para os frutos do mar.",
+          "O ambiente é rústico e acolhedor, proporcionando uma experiência gastronômica única."
+        ]
+      },
+      "noite": {
+        "atividade": "Último passeio pelo centro de Vitória, aproveitando para fazer compras em lojas locais.",
+        "localizacao": "Centro de Vitória",
+        "comentarios": [
+          "O centro de Vitória é um excelente lugar para compras, com muitas lojas que vendem produtos locais.",
+          "É uma boa oportunidade para comprar lembranças e conhecer mais sobre a cultura local.",
+          "A noite no centro é movimentada, com muitas opções de entretenimento e restaurantes."
+        ]
+      }
     }
   }
 }
 
-generate_itineray(resp_gpt, '1')
-"""
+#generate_itinerary(resp_gpt, '1')
+
+
