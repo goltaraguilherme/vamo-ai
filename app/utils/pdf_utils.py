@@ -733,8 +733,11 @@ def generate_itinerary(roteiro, number):
       #final_paths.append(close_path)
 
       generate_pdf(final_paths, number)
+
+      return 'success'
     except:
       print('error')
+      return 'error'
 
 def generate_day_text(index):
     # Dicionário para mapeamento de números para palavras

@@ -378,13 +378,18 @@ A resposta deve ser formatada em JSON, conforme o exemplo abaixo e atente-se par
     //Continue até o ultimo dia
   }
 }
-"""
-        roteiro = req_chatgpt(prompt)
-        print(roteiro)
-        print(json.loads(roteiro))
-        generate_itinerary(json.loads(roteiro), number)
-        data2 = send_itineray(number)
-        send_message(data2)
+"""     
+        resp_pdf = ""
+        for tries in range(3):
+            try:
+                roteiro = req_chatgpt(prompt)
+                print(json.loads(roteiro))
+                resp_pdf = generate_itinerary(json.loads(roteiro), number)
+                data2 = send_itineray(number)
+                send_message(data2)
+                if resp_pdf == "success": break
+            except:
+                pass
         data3 = get_text_message_input(number, "Processo finalizado! Para começar novamente basta digitar 'Vamo viajar'")
         send_message(data3)
         try:
