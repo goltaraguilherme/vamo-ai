@@ -4,11 +4,11 @@ import requests
 from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 from io import BytesIO
 from collections import Counter
-#from dotenv import load_dotenv
+from dotenv import load_dotenv
 
-#load_dotenv()
+load_dotenv()
 
-GOOGLE_PLACE_API_KEY = "-"
+GOOGLE_PLACE_API_KEY = os.getenv("GOOGLE_PLACE_API_KEY")
 def get_place_id(api_key, place_name):
     try:
         place_name = f"{place_name}, Domingos Martins" if place_name.upper() == "PEDRA AZUL" else place_name
@@ -703,9 +703,9 @@ def day_odd_layout_1(place_names, atividades, dicas, day, dia_text, number, api_
     draw.rectangle(section2_rect, fill=text_color1)
 
     # Fontes
-    title_font = ImageFont.truetype(font_path_title, 23)
-    subtitle_font = ImageFont.truetype(font_path_subtitle, 20)
-    text_font = ImageFont.truetype(font_path_text, 18)
+    title_font = ImageFont.truetype(font_path_title, 21)
+    subtitle_font = ImageFont.truetype(font_path_subtitle, 18)
+    text_font = ImageFont.truetype(font_path_text, 15)
 
     # Títulos e Textos
     title1 = f"Tarde: {atividades[0]}"
@@ -802,9 +802,9 @@ def day_odd_layout_2(place_names, atividades, dicas, day, dia_text, number, api_
     draw.rectangle(section2_rect, fill=background_color2)
 
     # Fontes
-    title_font = ImageFont.truetype(font_path_title, 23)
-    subtitle_font = ImageFont.truetype(font_path_subtitle, 22)
-    text_font = ImageFont.truetype(font_path_text, 20)
+    title_font = ImageFont.truetype(font_path_title, 21)
+    subtitle_font = ImageFont.truetype(font_path_subtitle, 18)
+    text_font = ImageFont.truetype(font_path_text, 15)
 
     # Títulos e Textos
     title1 = f"Tarde: {atividades[0]}"
@@ -829,8 +829,8 @@ def day_odd_layout_2(place_names, atividades, dicas, day, dia_text, number, api_
     print(f"lines_title2: {lines_title2}")
 
     # Ajustar a posição do texto baseado no número de linhas dos títulos
-    text1_position = (20, title1_position[1] + lines_title1 * 45 + 10)  # 10 pixels de espaço
-    text2_position = (560, title2_position[1] + lines_title2 * 45 + 10)  # 10 pixels de espaço
+    text1_position = (20, title1_position[1] + lines_title1 * 40 + 10)  # 10 pixels de espaço
+    text2_position = (560, title2_position[1] + lines_title2 * 40 + 10)  # 10 pixels de espaço
 
     print(f"Posição de text1: {text1_position}")
     print(f"Posição de text2: {text2_position}")
@@ -944,11 +944,11 @@ def day_even_layout_1(place_names, atividades, dicas, day, dia_text, number, api
 
 
     print("Desenhando title1...")
-    lines_title1 = draw_text3(draw, title1, title1_position, title_font, max_text_width1, 'white')
+    lines_title1 = draw_text(draw, title1, title1_position, title_font, max_text_width1, 'white')
     print(f"lines_title1: {lines_title1}")
 
     print("Desenhando title2...")
-    lines_title2 = draw_text3(draw, title2, title2_position, title_font, max_text_width2, '#03487a')
+    lines_title2 = draw_text(draw, title2, title2_position, title_font, max_text_width2, '#03487a')
     print(f"lines_title2: {lines_title2}")
 
     # Ajustar a posição do texto baseado no número de linhas dos títulos
@@ -962,9 +962,9 @@ def day_even_layout_1(place_names, atividades, dicas, day, dia_text, number, api
 
     # Desenhar os textos
     print("Desenhando text1...")
-    draw_text3(draw, text1, text1_position, text_font, max_text_width1, 'white')
+    draw_text(draw, text1, text1_position, text_font, max_text_width1, 'white')
     print("Desenhando text2...")
-    draw_text3(draw, text2, text2_position, text_font, max_text_width2, '#03487a')
+    draw_text(draw, text2, text2_position, text_font, max_text_width2, '#03487a')
     # Adicionar caixa com "Dia X" no meio do layout
     day_box_width, day_box_height = 130, 50
     day_box_position = ((image_width - day_box_width) // 2, (image_height - day_box_height) // 2 - 20)
@@ -1044,9 +1044,9 @@ def day_even_layout_2(place_names, atividades, dicas, day, dia_text, number, api
     draw.rectangle(section2_rect, fill=background_color2)
 
     # Fontes
-    title_font = ImageFont.truetype(font_path_title, 23)
-    subtitle_font = ImageFont.truetype(font_path_subtitle, 22)
-    text_font = ImageFont.truetype(font_path_text, 20)
+    title_font = ImageFont.truetype(font_path_title, 21)
+    subtitle_font = ImageFont.truetype(font_path_subtitle, 18)
+    text_font = ImageFont.truetype(font_path_text, 15)
 
     # Títulos e Textos
     title1 = f"Tarde: {atividades[0]}"
@@ -1072,8 +1072,8 @@ def day_even_layout_2(place_names, atividades, dicas, day, dia_text, number, api
     print(f"lines_title2: {lines_title2}")
 
     # Ajustar a posição do texto baseado no número de linhas dos títulos
-    text1_position = (560, title1_position[1] + lines_title1 * 45 + 10)  # 10 pixels de espaço
-    text2_position = (20, title2_position[1] + lines_title2 * 45 + 10)  # 10 pixels de espaço
+    text1_position = (560, title1_position[1] + lines_title1 * 40 + 10)  # 10 pixels de espaço
+    text2_position = (20, title2_position[1] + lines_title2 * 40 + 10)  # 10 pixels de espaço
 
     print(f"Posição de text1: {text1_position}")
     print(f"Posição de text2: {text2_position}")
@@ -1306,6 +1306,7 @@ def generate_itinerary(roteiro, number):
                 atracoes.append(tarde_local)
             except Exception as e:
                 print(f"Erro ao obter localização da tarde: {e}")
+                return "error"
         
         if len(atracoes) < 4:
             try:
@@ -1314,6 +1315,7 @@ def generate_itinerary(roteiro, number):
                 atracoes.append(noite_local)
             except Exception as e:
                 print(f"Erro ao obter localização da noite: {e}")
+                return "error"
         
         print(f"Atrações: {atracoes}")
         
@@ -1322,6 +1324,7 @@ def generate_itinerary(roteiro, number):
             print(f"Caminho da capa: {capa_path}")
         except Exception as e:
             print(f"Erro ao gerar capa: {e}")
+            return "error"
 
         count_even_days = 0
         count_odd_days = 0
@@ -1356,6 +1359,7 @@ def generate_itinerary(roteiro, number):
                         atividades.append(atividade)
                 except Exception as e:
                     print(f"Erro ao processar turno {turno}: {e}")
+                    return "error"
 
             dia_text = f"Dia {index + 1}"
             print(f"Texto do dia: {dia_text}")
@@ -1373,6 +1377,7 @@ def generate_itinerary(roteiro, number):
                     days_odd_paths.append(path)
             except Exception as e:
                 print(f"Erro ao gerar layout do dia: {e}")
+                return "error"
 
         final_paths = []
         final_paths.append(capa_path)
@@ -1394,17 +1399,21 @@ def generate_itinerary(roteiro, number):
                     final_paths.append(days_even_paths[i])
             except Exception as e:
                 print(f"Erro ao iterar sobre os caminhos finais: {e}")
+                return "error"
         
         print(f"Caminhos finais: {final_paths}")
 
         try:
             generate_pdf(final_paths, number)
             print(f"PDF gerado com sucesso para o número: {number}")
+            return "success"
         except Exception as e:
             print(f"Erro ao gerar PDF: {e}")
+            return "error"
 
     except Exception as e:
         print(f"Erro geral: {e}")
+        return "error"
 
 
 def generate_day_text(index):
@@ -1423,6 +1432,7 @@ def generate_day_text(index):
     # Obter a palavra correspondente ao índice
     return day_words.get(index, f"{index}º")
 
+"""
 resp_gpt = {
   "destino": "Espírito Santo, Brasil",
   "data": "15 a 21 de setembro de 2024",
@@ -1576,3 +1586,4 @@ resp_gpt = {
 }
 
 generate_itinerary(resp_gpt, '3')
+"""

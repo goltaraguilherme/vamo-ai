@@ -18,7 +18,7 @@ with app.app_context():
 
 @app.route('/view_pdf/<number_user>')
 def view_file(number_user):
-    file_path = f'./dados/{number_user}/{number_user}.pdf'
+    file_path = f'.\\dados\\{number_user}\\{number_user}.pdf'
     return send_file(file_path)
 
 if __name__ == "__main__":

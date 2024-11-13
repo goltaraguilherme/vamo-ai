@@ -18,9 +18,11 @@ import re
 (START,
 ROTEIRO_PERSONALIZADO_CIDADES,
 ROTEIRO_PERSONALIZADO_PREFERENCIAS,
+ROTEIRO_PERSONALIZADO_PREFERENCIAS_PERGUNTA,
+ROTEIRO_PERSONALIZADO_PREFERENCIAS2,
 ROTEIRO_PERSONALIZADO_COMPANHIA,
 ROTEIRO_PERSONALIZADO_DURACAO,
-ROTEIRO_PERSONALIZADO_FINALIZACAO) = range(6)
+ROTEIRO_PERSONALIZADO_FINALIZACAO) = range(8)
 
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -56,6 +58,40 @@ def get_text_message_input(recipient, text):
         }
     )
 
+def get_init_message(recipient):
+    return json.dumps(
+        {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": recipient,
+            "type": "interactive",
+            "interactive": {
+                "type": "button",
+                "header": {
+                "type": "text",
+                "text": "Olá! Seja bem-vindo ao Vamo AI - Seu companheiro de viagens!"
+                },
+                "body": {
+                "text": "Estou animado para embarcar nessa jornada incrível com você, vamo viajar? ✈️🌍"
+                },
+                "footer": {
+                "text": ""
+                },
+                "action": {
+                "buttons": [
+                    {
+                    "type": "reply",
+                    "reply": {
+                        "id": "01",
+                        "title": "Iniciar"
+                    }
+                    }
+                ]
+                }
+            }
+        }
+    )
+
 def get_welcome_message(recipient):
     #title = base64.b64encode("Estou animado para embarcar nessa jornada incrível com você! Aqui, você encontrará dois serviços excepcionais:\n\n1. Roteiro Personalizado: Permita-me criar uma experiência única para você! Com base em suas preferências e estilo de viagem, vou montar um roteiro sob medida, garantindo que cada momento seja memorável.\n\n2. Busca de Informações: Curioso sobre um local específico? Não se preocupe! Estou aqui para fornecer todas as informações que você precisa, desde a história local até as melhores atrações e dicas de viagem.\n\nPor favor, escolha uma das opções acima para começarmos nossa aventura juntos!".encode()).decode()
     #print(title)
@@ -69,10 +105,10 @@ def get_welcome_message(recipient):
                 "type": "list",
                 "header": {
                 "type": "text",
-                "text": "Olá! Seja bem-vindo ao Vamo AI - Seu companheiro de viagens!"
+                "text": ""
                 },
                 "body": {
-                "text": "Estou animado para embarcar nessa jornada incrível com você! Aqui, você encontrará dois serviços excepcionais:\n\n1. Roteiro Personalizado: Permita-me criar uma experiência única para você! Com base em suas preferências e estilo de viagem, vou montar um roteiro sob medida, garantindo que cada momento seja memorável.\n\n2. Busca de Informações: Curioso sobre um local específico? Não se preocupe! Estou aqui para fornecer todas as informações que você precisa, desde a história local até as melhores atrações e dicas de viagem. (Desabilitado até o momento)\n\nPor favor, escolha uma das opções acima para começarmos nossa aventura juntos!"
+                "text": "Aqui, você encontrará dois serviços excepcionais:\n\n1. *Criar roteiro:* Permita-me criar uma experiência única para você com base em suas preferências.\n\n2. *Busca de Informações:* Curioso sobre um local específico? Não se preocupe! Estou aqui para fornecer todas as informações que você precisa.(Desabilitado até o momento)\n\n"
                 },
                 "footer": {
                 "text": ""
@@ -84,7 +120,7 @@ def get_welcome_message(recipient):
                     "rows": [
                         {
                         "id": "01",
-                        "title": "Roteiro Personalizado",
+                        "title": "Criar roteiro",
                         "description": ""
                         }
                          #{
@@ -107,19 +143,170 @@ def get_likes_user_itinerary(recipient):
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
             "to": recipient,
-            "type": "text",
-            "text": {"preview_url": False, "body": """
-*Segunda parada*: O que faz seu coração bater mais forte? 🤔🤔
-
-Locais históricos
-Praias ensolaradas
-Montanhas desafiadoras
-Cachoeiras revigorantes 
-Bares e restaurantes
-
-Envie suas preferências para gerarmos o roteiro perfeito para você!
-            """},
+            "type": "interactive",
+            "interactive": {
+                "type": "list",
+                "header": {
+                "type": "text",
+                "text": "O que faz seu coração bater mais forte? 🤔"
+                },
+                "body": {
+                "text": "Envie suas preferências para gerarmos o roteiro perfeito para você!"
+                },
+                "footer": {
+                "text": ""
+                },
+                "action": {
+                "sections": [
+                    {
+                    "title": "Opções",
+                    "rows": [
+                        {
+                        "id": "01",
+                        "title": "Locais históricos",
+                        "description": ""
+                        },
+                        {
+                        "id": "02",
+                        "title": "Praias",
+                        "description": ""
+                        },
+                        {
+                        "id": "03",
+                        "title": "Montanhas e trilhas",
+                        "description": ""
+                        },
+                        {
+                        "id": "04",
+                        "title": "Cachoeiras",
+                        "description": ""
+                        },
+                        {
+                        "id": "05",
+                        "title": "Bares e restaurantes",
+                        "description": ""
+                        },
+                        {
+                        "id": "06",
+                        "title": "Reiniciar processo",
+                        "description": ""
+                        }
+                    ]
+                    }
+                ],
+                "button": "Suas preferencias",
+                }
+            }
         }
+    )
+
+def get_other_likes_question(recipient):
+    return json.dumps(
+        {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": recipient,
+            "type": "interactive",
+            "interactive": {
+                "type": "button",
+                "header": {
+                "type": "text",
+                "text": "Uma preferencia é boa, duas é melhor ainda"
+                },
+                "body": {
+                "text": "Que tal voce me indicar mais uma para eu te conhecer melhor? ✨"
+                },
+                "footer": {
+                "text": ""
+                },
+                "action": {
+                "buttons": [
+                    {
+                    "type": "reply",
+                    "reply": {
+                        "id": "01",
+                        "title": "Sim"
+                    }
+                    },
+                    {
+                    "type": "reply",
+                    "reply": {
+                        "id": "02",
+                        "title": "Pular"
+                    }
+                    }
+                ]
+                }
+            }
+        }
+    )
+
+def get_likes_user_itinerary2(recipient):
+    return json.dumps(
+        {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": recipient,
+            "type": "interactive",
+            "interactive": {
+                "type": "list",
+                "header": {
+                "type": "text",
+                "text": "Por que querer apenas uma atração se podemos ter duas? 🤔"
+                },
+                "body": {
+                "text": "Envie sua segunda preferência para gerarmos o roteiro perfeito para você!"
+                },
+                "footer": {
+                "text": ""
+                },
+                "action": {
+                "sections": [
+                    {
+                    "title": "Opções",
+                    "rows": [
+                        {
+                        "id": "00",
+                        "title": "Não tenho",
+                        "description": ""
+                        },{
+                        "id": "01",
+                        "title": "Locais históricos",
+                        "description": ""
+                        },
+                        {
+                        "id": "02",
+                        "title": "Praias",
+                        "description": ""
+                        },
+                        {
+                        "id": "03",
+                        "title": "Montanhas e trilhas",
+                        "description": ""
+                        },
+                        {
+                        "id": "04",
+                        "title": "Cachoeiras",
+                        "description": ""
+                        },
+                        {
+                        "id": "05",
+                        "title": "Bares e restaurantes",
+                        "description": ""
+                        },
+                        {
+                        "id": "06",
+                        "title": "Reiniciar processo",
+                        "description": ""
+                        }
+                    ]
+                    }
+                ],
+                "button": "Suas preferencias",
+                }
+            }
+        }
+    
     )
 
 def get_companionship_message(recipient):
@@ -136,7 +323,7 @@ def get_companionship_message(recipient):
                 "text": ""
                 },
                 "body": {
-                "text": "Uau, adorei sua escolha!\n\nAgora, vamos continuar montando o roteiro! Faltam só mais 2 perguntinhas.\n\nQuem vai ser sua companhia nessa jornada?\n\nAmigos, família, parceiro(a) ou você vai brilhar solo? ✨"
+                "text": "Uau, adorei sua escolha!\n\nAgora, vamos continuar montando o roteiro! Faltam só mais 2 perguntinhas.\n\nQuem vai ser sua companhia nessa jornada? ✨"
                 },
                 "footer": {
                 "text": ""
@@ -165,6 +352,11 @@ def get_companionship_message(recipient):
                         "id": "04",
                         "title": "Vou viajar solo",
                         "description": ""
+                        },
+                        {
+                        "id": "05",
+                        "title": "Reiniciar processo",
+                        "description": ""
                         }
                     ]
                     }
@@ -181,8 +373,55 @@ def get_days_travel(recipient):
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
             "to": recipient,
-            "type": "text",
-            "text": {"preview_url": False, "body": "Muito bom! Quantos dias vocês desejam passar no local? 🗓️"},
+            "type": "interactive",
+            "interactive": {
+                "type": "list",
+                "header": {
+                "type": "text",
+                "text": ""
+                },
+                "body": {
+                "text": "Muito bom! Quantos dias vocês desejam passar no local? 🗓️"
+                },
+                "footer": {
+                "text": ""
+                },
+                "action": {
+                "sections": [
+                    {
+                    "title": "Opções",
+                    "rows": [
+                        {
+                        "id": "01",
+                        "title": "2 dias",
+                        "description": ""
+                        },
+                        {
+                        "id": "02",
+                        "title": "3 dias",
+                        "description": ""
+                        },
+                        {
+                        "id": "03",
+                        "title": "4 dias",
+                        "description": ""
+                        },
+                        {
+                        "id": "04",
+                        "title": "5 dias",
+                        "description": ""
+                        },
+                        {
+                        "id": "05",
+                        "title": "Reiniciar processo",
+                        "description": ""
+                        }
+                    ]
+                    }
+                ],
+                "button": "Duração",
+                }
+            }
         }
     )
 
@@ -204,7 +443,7 @@ def get_finish_itineray(recipient):
             "recipient_type": "individual",
             "to": recipient,
             "type": "text",
-            "text": {"preview_url": False, "body": "Parabéns, explorador(a)! Você completou o processo de personalização do seu roteiro!\n\n 🎉 Agora, vou dar um 'check-in' nas suas preferências e em instantes enviarei um roteiro personalizado que vai te deixar nas nuvens!\n\n ✈️🌟 Prepare-se para uma viagem cheia de 'bagagens' de diversão e memórias inesquecíveis! 🧳😄"},
+            "text": {"preview_url": False, "body": "Parabéns, explorador(a)! Você completou o processo de personalização do seu roteiro!\n\n 🎉 Agora, vou analisar suas respostas e em instantes irei te enviar um roteiro personalizado que vai te deixar nas nuvens!\n\n ✈️🌟"},
         }
     )
 
@@ -216,7 +455,7 @@ def send_itineray(recipient):
         "to": recipient,
         "type": "document",
         "document": {
-            "link": f"https://hopeful-native-bluegill.ngrok-free.app/view_pdf/{recipient}",
+            "link": f"https://77870e640f948729cd18cef47f4a2e62.serveo.net/view_pdf/{recipient}",
             "filename": "roteiro.pdf"
         }
     })
@@ -238,7 +477,7 @@ Por favor, escolha uma das opções acima para começarmos nossa aventura juntos
 def send_message(data):
     headers = {
         "Content-type": "application/json",
-        "Authorization": f"Bearer {current_app.config['ACCESS_TOKEN']}",
+        "Authorization": f"Bearer {current_app.config['ACCESS_TOKEN']}"
     }
 
     url = f"https://graph.facebook.com/{current_app.config['VERSION']}/{current_app.config['PHONE_NUMBER_ID']}/messages"
@@ -285,8 +524,13 @@ def process_whatsapp_message(body, state, number):
     name = body["entry"][0]["changes"][0]["value"]["contacts"][0]["profile"]["name"]
 
     message = body["entry"][0]["changes"][0]["value"]["messages"][0]
-    #logging.info(f"teste: {message}")
-    message_body = message["text"]["body"] if 'text' in message else message["interactive"]["list_reply"]["title"]
+    type_message = message['type']
+    if type_message == 'text': 
+        message_body = message["text"]["body"]
+    elif type_message == 'interactive':
+        type_interactive = message["interactive"]["type"]
+        message_body = message["interactive"][type_interactive]["title"]
+
     try:
         chat = Chats.query.filter_by(number=number).first()
         if chat:
@@ -301,7 +545,7 @@ def process_whatsapp_message(body, state, number):
     except SQLAlchemyError as e:
         return jsonify({"error": str(e)}), 500
     # TODO: implement custom function here
-    if(state == START and message_body.upper() == "VAMO VIAJAR"):   
+    if(state == START and message_body.upper() == "INICIAR"):   
         data = get_welcome_message(number)
         send_message(data)
     elif(state == ROTEIRO_PERSONALIZADO_CIDADES):  
@@ -312,9 +556,18 @@ def process_whatsapp_message(body, state, number):
         db.session.commit()
         data = get_likes_user_itinerary(number)
         send_message(data)
-    elif(state == ROTEIRO_PERSONALIZADO_COMPANHIA):  
+    #elif(state == ROTEIRO_PERSONALIZADO_PREFERENCIAS_PERGUNTA): 
+    #    data = get_other_likes_question(number)
+    #    send_message(data)
+    elif(state == ROTEIRO_PERSONALIZADO_PREFERENCIAS2): 
         chat.preferences = message_body
         db.session.commit()
+        data = get_likes_user_itinerary2(number)
+        send_message(data)
+    elif(state == ROTEIRO_PERSONALIZADO_COMPANHIA): 
+        if message_body != "Não tenho": 
+            chat.preferences = chat.preferences + ' e ' + message_body
+            db.session.commit()
         data = get_companionship_message(number)
         send_message(data)
     elif(state == ROTEIRO_PERSONALIZADO_DURACAO):    
@@ -328,10 +581,11 @@ def process_whatsapp_message(body, state, number):
         data = get_finish_itineray(number)
         send_message(data)
         prompt = f"""
-Você é um assistente de viagem especializado em criar roteiros personalizados. Preciso de um roteiro de viagem detalhado para um cliente que deseja visitar o Espirito Santo por {chat.days} dias. Aqui estão os detalhes e preferências do cliente:
+Você é um assistente de viagem especializado em criar roteiros personalizados. Preciso de um roteiro de viagem detalhado para um cliente que deseja visitar o Espirito Santo por {chat.days}. Aqui estão os detalhes e preferências do cliente:
 
     Destino: {chat.cities} no Espirito Santo, Brasil
     Interesses: {chat.preferences}
+    Duração: {chat.days}
     Orçamento: Moderado (não muito caro, mas disposto a gastar em algumas experiências especiais)
     Preferências: Prefere transporte público e caminhadas, gosta de explorar bairros locais e menos turísticos, interessado em eventos ou festivais locais
 
@@ -390,7 +644,7 @@ A resposta deve ser formatada em JSON, conforme o exemplo abaixo e atente-se par
                 if resp_pdf == "success": break
             except:
                 pass
-        data3 = get_text_message_input(number, "Processo finalizado! Para começar novamente basta digitar 'Vamo viajar'")
+        data3 = get_text_message_input(number, "Processo finalizado!")
         send_message(data3)
         try:
             chat = Chats.query.filter_by(number=number).first()
@@ -402,8 +656,7 @@ A resposta deve ser formatada em JSON, conforme o exemplo abaixo e atente-se par
             db.session.rollback()
             return jsonify({"error": str(e)}), 500
     else:
-        response = "Para começar, responda 'Vamo viajar'"
-        data = get_text_message_input(number, response)
+        data = get_init_message(number)
         send_message(data)
 
     # OpenAI Integration

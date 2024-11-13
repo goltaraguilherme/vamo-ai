@@ -19,9 +19,11 @@ webhook_blueprint = Blueprint("webhook", __name__)
 (START,
 ROTEIRO_PERSONALIZADO_CIDADES,
 ROTEIRO_PERSONALIZADO_PREFERENCIAS,
+ROTEIRO_PERSONALIZADO_PREFERENCIAS_PERGUNTA,
+ROTEIRO_PERSONALIZADO_PREFERENCIAS2,
 ROTEIRO_PERSONALIZADO_COMPANHIA,
 ROTEIRO_PERSONALIZADO_DURACAO,
-ROTEIRO_PERSONALIZADO_FINALIZACAO) = range(6)
+ROTEIRO_PERSONALIZADO_FINALIZACAO) = range(8)
 
 def handle_message():
     """
@@ -82,13 +84,27 @@ def handle_message():
             except SQLAlchemyError as e:
                 return jsonify({"error": str(e)}), 500
             message = body["entry"][0]["changes"][0]["value"]["messages"][0]
+            type_message = message['type']
+            if type_message == 'text': 
+                message_body = message["text"]["body"]
+            elif type_message == 'interactive':
+                type_interactive = message["interactive"]["type"]
+                message_body = message["interactive"][type_interactive]["title"]
+            
+            if message_body.upper() == "REINICIAR PROCESSO":
+                state = ROTEIRO_PERSONALIZADO_CIDADES
             #logging.info(f"teste: {message}")
-            message_body = message["text"]["body"] if 'text' in message else message["interactive"]["list_reply"]["title"]
-            if(state == START and message_body.upper() == "ROTEIRO PERSONALIZADO"):
+            elif(state == START and message_body.upper() == "CRIAR ROTEIRO"):
                 state = ROTEIRO_PERSONALIZADO_CIDADES
             elif(state == ROTEIRO_PERSONALIZADO_CIDADES):
                 state = ROTEIRO_PERSONALIZADO_PREFERENCIAS
             elif(state == ROTEIRO_PERSONALIZADO_PREFERENCIAS):
+                state = ROTEIRO_PERSONALIZADO_PREFERENCIAS2
+            elif(state == ROTEIRO_PERSONALIZADO_PREFERENCIAS_PERGUNTA and message_body.upper() == "SIM"):
+                state = ROTEIRO_PERSONALIZADO_PREFERENCIAS2
+            elif(state == ROTEIRO_PERSONALIZADO_PREFERENCIAS_PERGUNTA and message_body.upper() == "PULAR"):
+                state = ROTEIRO_PERSONALIZADO_COMPANHIA
+            elif(state == ROTEIRO_PERSONALIZADO_PREFERENCIAS2):
                 state = ROTEIRO_PERSONALIZADO_COMPANHIA
             elif(state == ROTEIRO_PERSONALIZADO_COMPANHIA):
                 state = ROTEIRO_PERSONALIZADO_DURACAO
